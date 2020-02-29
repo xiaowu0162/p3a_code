@@ -161,5 +161,9 @@ int main(int argc, char** argv)
     }
   }
 
+  for (i = 0; i < sb.s_inodes_count; i++) {
+    // If the things is a directory
+    if ((inodes[i].i_mode & 0xF000) == 0x4000 || (inodes[i].i_mode & 0xF000) == 0x8000) {
+      
   return 0;
 }
