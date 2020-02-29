@@ -43,14 +43,14 @@ int main(int argc, char** argv)
     }
 
   int ret = 0;
-  int i, j;
+  __u32 i, j, k;
 
   // Super block summary
   struct ext2_super_block sb;
   ret = pread(fs, &sb, BLOCK, BLOCK);
   error(ret);
-  printf("SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n", sb.s_blocks_count, sb.s_inodes_count, 1024<<sb.s_log_block_size, sb.s_inode_size, sb.s_blocks_per_group, sb.s_inodes_per_group, sb.s_first_ino);
-
+  __u32 b_size = 1024<<sb.s_log_block_size;
+  printf("SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n", sb.s_blocks_count, sb.s_inodes_count, b_size, sb.s_inode_size, sb.s_blocks_per_group, sb.s_inodes_per_group, sb.s_first_ino);
   
   // Group summary
   struct ext2_group_desc group_desc;   // size is 32
@@ -95,6 +95,7 @@ int main(int argc, char** argv)
   struct ext2_inode inodes[sb.s_inodes_count];
   ret = pread(fs, &inodes, sb.s_inodes_count*sizeof(struct ext2_inode), BLOCK*group_desc.bg_inode_table);
   error(ret);
+
   for(i=0; i<sb.s_inodes_count; i++)
     {
       if(inodes[i].i_mode != 0 && inodes[i].i_links_count != 0)
@@ -136,6 +137,24 @@ int main(int argc, char** argv)
 	}
     }
   
-  
+ 
+  struct ext2_dir_entry dirent;
+  for (i = 0; i < sb.s_inodes_count; i++) {
+    // If the things is a directory
+    if (inodes[i].i_mode == 0x4000) {
+      for (j = 0; j < EXT2_NDIR_BLOCKS; j++) {
+	if (inodes[i].i_block[j] != 0) {
+	  for (k = 0; k + sizeof(struct ext2_dir_entry) < b_size; k += sizeof(struct ext2_dir_entry)) {
+	    ret = pread(fs, &dirent, sizeof(struct ext2_dir_entry), sb.s_first_data_block + inodes[i].i_block[j] + k);
+	    error(ret);
+	    if (dirent.inode != 0) {
+	      printf("DIRENT, %d, %d, %d, %d, %d, %s\n", i + 1, j * b_size + k, dirent.inode, dirent.rec_len, dirent.name_len, dirent.name);
+	    }
+	  }
+	}
+      }
+    }
+  }
+ 
   return 0;
 }
