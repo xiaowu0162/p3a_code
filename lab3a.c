@@ -10,6 +10,7 @@ ID: 205117980,805126509
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <time.h>
 #include "ext2_fs.h"
 
 #define BLOCK 1024
@@ -22,6 +23,7 @@ void error(int ret)
       exit(1);
     }
 }
+
 
 int main(int argc, char** argv)
 { 
@@ -93,10 +95,46 @@ int main(int argc, char** argv)
   struct ext2_inode inodes[sb.s_inodes_count];
   ret = pread(fs, &inodes, sb.s_inodes_count*sizeof(struct ext2_inode), BLOCK*group_desc.bg_inode_table);
   error(ret);
-  printf("Inode 20:\nMode: %d\nSize: %d\nFlags: %o\n", inodes[19].i_mode, inodes[19].i_size, inodes[19].i_flags);
+  for(i=0; i<sb.s_inodes_count; i++)
+    {
+      if(inodes[i].i_mode != 0 && inodes[i].i_links_count != 0)
+	{
+	  __u16 type_code = inodes[i].i_mode & 0xF000;
+	  __u16 mode_code = inodes[i].i_mode & 0x0FFF;
+	  char file_type = '?';
+	  switch(type_code)
+	    {
+	    case 0x8000:
+	      file_type = 'f';
+	      break;
+	    case 0x4000:
+	      file_type = 'd';
+	      break;
+	    case 0xA000:
+	      file_type = 's';
+	      break;
+	    default: break;
+	    }
 
-
-
+	  char c_time_str[100];
+	  char a_time_str[100];
+	  char m_time_str[100];
+	  
+	  time_t c_time_raw = (time_t)inodes[i].i_ctime;   //creation or change ???
+	  time_t m_time_raw = (time_t)inodes[i].i_mtime;
+	  time_t a_time_raw = (time_t)inodes[i].i_atime;
+	  
+	  struct tm* tmp;
+	  tmp = gmtime(&c_time_raw);  
+	  strftime(c_time_str, sizeof(c_time_str), "%D %I:%M:%S", tmp);  
+	  tmp = gmtime(&m_time_raw);  
+	  strftime(m_time_str, sizeof(m_time_str), "%D %I:%M:%S", tmp);  
+	  tmp = gmtime(&a_time_raw);  
+	  strftime(a_time_str, sizeof(a_time_str), "%D %I:%M:%S", tmp);  
+	  
+	  printf("INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d\n", i+1, file_type, mode_code, inodes[i].i_uid, inodes[i].i_gid, inodes[i].i_links_count, c_time_str, m_time_str, a_time_str, inodes[i].i_size, inodes[i].i_blocks);
+	}
+    }
   
   
   return 0;
