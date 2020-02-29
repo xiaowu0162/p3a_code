@@ -10,6 +10,7 @@ ID: 205117980,805126509
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <time.h>
 #include "ext2_fs.h"
 
 #define BLOCK 1024
@@ -22,6 +23,7 @@ void error(int ret)
       exit(1);
     }
 }
+
 
 int main(int argc, char** argv)
 { 
@@ -52,14 +54,14 @@ int main(int argc, char** argv)
   
   // Group summary
   struct ext2_group_desc group_desc;   // size is 32
-  ret = pread(fs, &group_desc, 32, BLOCK*2);
+  ret = pread(fs, &group_desc, 32, b_size*2);
   error(ret);
   printf("GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", 0, sb.s_blocks_per_group, sb.s_inodes_per_group, group_desc.bg_free_blocks_count, group_desc.bg_free_inodes_count, group_desc.bg_block_bitmap, group_desc.bg_inode_bitmap, group_desc.bg_inode_table);
 
   
   // Free block entries
   char b_bitmap[sb.s_blocks_count/8 + 1];
-  ret = pread(fs, &b_bitmap, sb.s_blocks_count/8 + 1, BLOCK*group_desc.bg_block_bitmap);
+  ret = pread(fs, &b_bitmap, sb.s_blocks_count/8 + 1, b_size*group_desc.bg_block_bitmap);
   error(ret);
   for(i=0; i<sb.s_blocks_count/8; i++)
     {
@@ -75,7 +77,7 @@ int main(int argc, char** argv)
 
   // Free inode entries
   char i_bitmap[sb.s_inodes_count/8 + 1];
-  ret = pread(fs, &i_bitmap, sb.s_inodes_count/8 + 1, BLOCK*group_desc.bg_inode_bitmap);
+  ret = pread(fs, &i_bitmap, sb.s_inodes_count/8 + 1, b_size*group_desc.bg_inode_bitmap);
   error(ret);
   for(i=0; i<sb.s_inodes_count/8; i++)
     {
@@ -91,8 +93,53 @@ int main(int argc, char** argv)
 
   // Inode summary
   struct ext2_inode inodes[sb.s_inodes_count];
-  ret = pread(fs, &inodes, sb.s_inodes_count*sizeof(struct ext2_inode), BLOCK*group_desc.bg_inode_table);
+  ret = pread(fs, &inodes, sb.s_inodes_count*sizeof(struct ext2_inode), b_size*group_desc.bg_inode_table);
   error(ret);
+
+
+  for(i=0; i<sb.s_inodes_count; i++)
+    {
+      if(inodes[i].i_mode != 0 && inodes[i].i_links_count != 0)
+	{
+	  __u16 type_code = inodes[i].i_mode & 0xF000;
+	  __u16 mode_code = inodes[i].i_mode & 0x0FFF;
+	  char file_type = '?';
+	  switch(type_code)
+	    {
+	    case 0x8000:
+	      file_type = 'f';
+	      break;
+	    case 0x4000:
+	      file_type = 'd';
+	      break;
+	    case 0xA000:
+	      file_type = 's';
+	      break;
+	    default: break;
+	    }
+
+	  char c_time_str[100];
+	  char a_time_str[100];
+	  char m_time_str[100];
+	  
+	  time_t c_time_raw = (time_t)inodes[i].i_ctime;   //creation or change ???
+	  time_t m_time_raw = (time_t)inodes[i].i_mtime;
+	  time_t a_time_raw = (time_t)inodes[i].i_atime;
+	  
+	  struct tm* tmp;
+	  tmp = gmtime(&c_time_raw);  
+	  strftime(c_time_str, sizeof(c_time_str), "%D %I:%M:%S", tmp);  
+	  tmp = gmtime(&m_time_raw);  
+	  strftime(m_time_str, sizeof(m_time_str), "%D %I:%M:%S", tmp);  
+	  tmp = gmtime(&a_time_raw);  
+	  strftime(a_time_str, sizeof(a_time_str), "%D %I:%M:%S", tmp);  
+	  
+	  printf("INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d\n", i+1, file_type, mode_code, inodes[i].i_uid, inodes[i].i_gid, inodes[i].i_links_count, c_time_str, m_time_str, a_time_str, inodes[i].i_size, inodes[i].i_blocks);
+
+	}
+    }
+
+
 
   struct ext2_dir_entry dirent;
   for (i = 0; i < sb.s_inodes_count; i++) {
@@ -113,5 +160,6 @@ int main(int argc, char** argv)
       }
     }
   }
+
   return 0;
 }
