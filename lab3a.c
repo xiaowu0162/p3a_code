@@ -95,8 +95,6 @@ int main(int argc, char** argv)
   struct ext2_inode inodes[sb.s_inodes_count];
   ret = pread(fs, &inodes, sb.s_inodes_count*sizeof(struct ext2_inode), b_size*group_desc.bg_inode_table);
   error(ret);
-
-
   for(i=0; i<sb.s_inodes_count; i++)
     {
       if(inodes[i].i_mode != 0 && inodes[i].i_links_count != 0)
@@ -134,13 +132,31 @@ int main(int argc, char** argv)
 	  tmp = gmtime(&a_time_raw);  
 	  strftime(a_time_str, sizeof(a_time_str), "%D %I:%M:%S", tmp);  
 	  
-	  printf("INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d\n", i+1, file_type, mode_code, inodes[i].i_uid, inodes[i].i_gid, inodes[i].i_links_count, c_time_str, m_time_str, a_time_str, inodes[i].i_size, inodes[i].i_blocks);
-
+	  printf("INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", i+1, file_type, mode_code, inodes[i].i_uid, inodes[i].i_gid, inodes[i].i_links_count, c_time_str, m_time_str, a_time_str, inodes[i].i_size, inodes[i].i_blocks);
+	  
+	  // the remaining (no more than 15) entries
+	  if(file_type == 'f' || file_type == 'd')
+	    {
+	      for(j=0; j<EXT2_N_BLOCKS; j++)
+		printf(",%d", inodes[i].i_block[j]);
+	      printf("\n");
+	    }
+	  else if(file_type == 's')
+	    {
+	      if(inodes[i].i_size >= sizeof(inodes[i].i_block))
+		{
+		  for(j=0; j<EXT2_N_BLOCKS; j++)
+		    printf(",%d", inodes[i].i_block[j]);
+		}
+	      printf("\n");
+	    }
+	  else
+	    printf("\n");
 	}
     }
 
 
-
+  // Directory entries
   struct ext2_dir_entry dirent;
   for (i = 0; i < sb.s_inodes_count; i++) {
     // If the things is a directory
