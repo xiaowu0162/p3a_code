@@ -88,6 +88,16 @@ int main(int argc, char** argv)
 	}
     }
 
+
+  // Inode summary
+  struct ext2_inode inodes[sb.s_inodes_count];
+  ret = pread(fs, &inodes, sb.s_inodes_count*sizeof(struct ext2_inode), BLOCK*group_desc.bg_inode_table);
+  error(ret);
+  printf("Inode 20:\nMode: %d\nSize: %d\nFlags: %o\n", inodes[19].i_mode, inodes[19].i_size, inodes[19].i_flags);
+
+
+
+  
   
   return 0;
 }
