@@ -49,6 +49,15 @@ int main(int argc, char** argv)
   ret = pread(fs, &sb, BLOCK, BLOCK);
   error(ret);
   printf("SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n", sb.s_blocks_count, sb.s_inodes_count, 1024<<sb.s_log_block_size, sb.s_inode_size, sb.s_blocks_per_group, sb.s_inodes_per_group, sb.s_first_ino);
+
+  //////////////////////////////
+  // Group summary
+  //////////////////////////////
+  struct ext2_group_desc group_desc;   // size is 32
+  ret = pread(fs, &group_desc, 32, BLOCK*2);
+  error(ret);
+  printf("GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", 0, sb.s_blocks_per_group, sb.s_inodes_per_group, group_desc.bg_free_blocks_count, group_desc.bg_free_inodes_count, group_desc.bg_block_bitmap, group_desc.bg_inode_bitmap, group_desc.bg_inode_table);
+
   
   return 0;
 }
