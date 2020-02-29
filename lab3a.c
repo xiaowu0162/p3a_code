@@ -152,7 +152,7 @@ int main(int argc, char** argv)
 	    ret = pread(fs, &dirent, sizeof(struct ext2_dir_entry), b_size * inodes[i].i_block[j] + k);
 	    error(ret);
 	    if (dirent.inode != 0) {
-	      printf("DIRENT,%d,%d,%d,%d,%d,'%s'\n", i + 1, j * b_size + k, dirent.inode, dirent.rec_len, dirent.name_len, dirent.name);
+	      printf("DIRENT,%d,%d,%d,%d,%d,'%.*s'\n", i + 1, j * b_size + k, dirent.inode, dirent.rec_len, dirent.name_len, dirent.name_len, dirent.name);
 	    }
 	    k += dirent.rec_len;
 	  }
