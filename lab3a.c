@@ -97,22 +97,21 @@ int main(int argc, char** argv)
   struct ext2_dir_entry dirent;
   for (i = 0; i < sb.s_inodes_count; i++) {
     // If the things is a directory
-    if (inodes[i].i_mode == 0x4000) {
+    if ((inodes[i].i_mode & 0xF000) == 0x4000) {
       for (j = 0; j < EXT2_NDIR_BLOCKS; j++) {
 	if (inodes[i].i_block[j] != 0) {
-	  for (k = 0; k + sizeof(struct ext2_dir_entry) < b_size; k += sizeof(struct ext2_dir_entry)) {
-	    ret = pread(fs, &dirent, sizeof(struct ext2_dir_entry), sb.s_first_data_block + inodes[i].i_block[j] + k);
+	  k = 0;
+	  while (k < b_size) {
+	    ret = pread(fs, &dirent, sizeof(struct ext2_dir_entry), b_size * inodes[i].i_block[j] + k);
 	    error(ret);
 	    if (dirent.inode != 0) {
-	      printf("DIRENT, %d, %d, %d, %d, %d, %s\n", i + 1, j * b_size + k, dirent.inode, dirent.rec_len, dirent.name_len, dirent.name);
+	      printf("DIRENT,%d,%d,%d,%d,%d,'%s'\n", i + 1, j * b_size + k, dirent.inode, dirent.rec_len, dirent.name_len, dirent.name);
 	    }
+	    k += dirent.rec_len;
 	  }
 	}
       }
     }
   }
-
-  
-  
   return 0;
 }
