@@ -1,4 +1,4 @@
-submission_files=lab3a.c Makefile README
+submission_files=lab3a.c ext2_fs.h Makefile README
 default: lab3a
 lab3a: lab3a.c
 	gcc $^ -o $@
