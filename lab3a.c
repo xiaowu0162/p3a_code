@@ -41,22 +41,52 @@ int main(int argc, char** argv)
     }
 
   int ret = 0;
-  
-  //////////////////////////////
+  int i, j;
+
   // Super block summary
-  //////////////////////////////
   struct ext2_super_block sb;
   ret = pread(fs, &sb, BLOCK, BLOCK);
   error(ret);
   printf("SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n", sb.s_blocks_count, sb.s_inodes_count, 1024<<sb.s_log_block_size, sb.s_inode_size, sb.s_blocks_per_group, sb.s_inodes_per_group, sb.s_first_ino);
 
-  //////////////////////////////
+  
   // Group summary
-  //////////////////////////////
   struct ext2_group_desc group_desc;   // size is 32
   ret = pread(fs, &group_desc, 32, BLOCK*2);
   error(ret);
   printf("GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", 0, sb.s_blocks_per_group, sb.s_inodes_per_group, group_desc.bg_free_blocks_count, group_desc.bg_free_inodes_count, group_desc.bg_block_bitmap, group_desc.bg_inode_bitmap, group_desc.bg_inode_table);
+
+  
+  // Free block entries
+  char b_bitmap[sb.s_blocks_count/8 + 1];
+  ret = pread(fs, &b_bitmap, sb.s_blocks_count/8 + 1, BLOCK*group_desc.bg_block_bitmap);
+  error(ret);
+  for(i=0; i<sb.s_blocks_count/8; i++)
+    {
+      for(j=0; j<8; j++)
+	{
+	  if(i*8+(7-j) >= sb.s_blocks_count)
+	    break;
+	  if(!(b_bitmap[i] & (1<<j)))
+	    printf("BFREE,%d\n", i*8+j+1);
+	}
+    }
+  
+
+  // Free inode entries
+  char i_bitmap[sb.s_inodes_count/8 + 1];
+  ret = pread(fs, &i_bitmap, sb.s_inodes_count/8 + 1, BLOCK*group_desc.bg_inode_bitmap);
+  error(ret);
+  for(i=0; i<sb.s_inodes_count/8; i++)
+    {
+      for(j=0; j<8; j++)
+	{
+	  if(i*8+(7-j) >= sb.s_inodes_count)
+	    break;
+	  if(!(i_bitmap[i] & (1<<j)))
+	    printf("IFREE,%d\n", i*8+j+1);
+	}
+    }
 
   
   return 0;
