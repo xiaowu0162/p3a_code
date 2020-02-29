@@ -54,14 +54,14 @@ int main(int argc, char** argv)
   
   // Group summary
   struct ext2_group_desc group_desc;   // size is 32
-  ret = pread(fs, &group_desc, 32, BLOCK*2);
+  ret = pread(fs, &group_desc, 32, b_size*2);
   error(ret);
   printf("GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", 0, sb.s_blocks_per_group, sb.s_inodes_per_group, group_desc.bg_free_blocks_count, group_desc.bg_free_inodes_count, group_desc.bg_block_bitmap, group_desc.bg_inode_bitmap, group_desc.bg_inode_table);
 
   
   // Free block entries
   char b_bitmap[sb.s_blocks_count/8 + 1];
-  ret = pread(fs, &b_bitmap, sb.s_blocks_count/8 + 1, BLOCK*group_desc.bg_block_bitmap);
+  ret = pread(fs, &b_bitmap, sb.s_blocks_count/8 + 1, b_size*group_desc.bg_block_bitmap);
   error(ret);
   for(i=0; i<sb.s_blocks_count/8; i++)
     {
@@ -77,7 +77,7 @@ int main(int argc, char** argv)
 
   // Free inode entries
   char i_bitmap[sb.s_inodes_count/8 + 1];
-  ret = pread(fs, &i_bitmap, sb.s_inodes_count/8 + 1, BLOCK*group_desc.bg_inode_bitmap);
+  ret = pread(fs, &i_bitmap, sb.s_inodes_count/8 + 1, b_size*group_desc.bg_inode_bitmap);
   error(ret);
   for(i=0; i<sb.s_inodes_count/8; i++)
     {
@@ -93,7 +93,7 @@ int main(int argc, char** argv)
 
   // Inode summary
   struct ext2_inode inodes[sb.s_inodes_count];
-  ret = pread(fs, &inodes, sb.s_inodes_count*sizeof(struct ext2_inode), BLOCK*group_desc.bg_inode_table);
+  ret = pread(fs, &inodes, sb.s_inodes_count*sizeof(struct ext2_inode), b_size*group_desc.bg_inode_table);
   error(ret);
 
   for(i=0; i<sb.s_inodes_count; i++)
@@ -137,24 +137,6 @@ int main(int argc, char** argv)
 	}
     }
   
- 
-  struct ext2_dir_entry dirent;
-  for (i = 0; i < sb.s_inodes_count; i++) {
-    // If the things is a directory
-    if (inodes[i].i_mode == 0x4000) {
-      for (j = 0; j < EXT2_NDIR_BLOCKS; j++) {
-	if (inodes[i].i_block[j] != 0) {
-	  for (k = 0; k + sizeof(struct ext2_dir_entry) < b_size; k += sizeof(struct ext2_dir_entry)) {
-	    ret = pread(fs, &dirent, sizeof(struct ext2_dir_entry), sb.s_first_data_block + inodes[i].i_block[j] + k);
-	    error(ret);
-	    if (dirent.inode != 0) {
-	      printf("DIRENT, %d, %d, %d, %d, %d, %s\n", i + 1, j * b_size + k, dirent.inode, dirent.rec_len, dirent.name_len, dirent.name);
-	    }
-	  }
-	}
-      }
-    }
-  }
- 
+  
   return 0;
 }
