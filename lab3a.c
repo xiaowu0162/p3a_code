@@ -15,6 +15,9 @@ ID: 205117980,805126509
 
 #define BLOCK 1024
 
+__u32 b_size;
+int fs;
+
 void error(int ret)
 {
   if(ret < 0)
@@ -24,6 +27,47 @@ void error(int ret)
     }
 }
 
+void first_ind(__u32 block_no, __u32 parent_no, __u32 base) {
+  int ret;
+  __u32 blocks[b_size/sizeof(__u32)];
+  ret = pread(fs, &blocks, b_size, b_size * block_no);
+  error(ret);
+  __u32 i;
+  for (i = 0; i < b_size/sizeof(__u32); i++) {
+    if (blocks[i] != 0) {
+      printf("INDIRECT,%d,%d,%d,%d,%d\n", parent_no, 1, base + i, block_no, blocks[i]);
+    }
+  }
+}
+
+void second_ind(__u32 block_no, __u32 parent_no, __u32 base) {
+  int ret;
+  __u32 blocks[b_size/sizeof(__u32)];
+  ret = pread(fs, &blocks, b_size, b_size * block_no);
+  error(ret);
+  __u32 i;
+  for (i = 0; i < b_size/sizeof(__u32); i++) {
+    if (blocks[i] != 0) {
+      printf("INDIRECT,%d,%d,%ld,%d,%d\n", parent_no, 2, base + i * (b_size / sizeof(__u32)), block_no, blocks[i]);
+      first_ind(blocks[i], parent_no, base + i * (b_size / sizeof(__u32)));
+    }
+  }
+}
+
+void third_ind(__u32 block_no, __u32 parent_no, __u32 base) {
+  int ret;
+  __u32 blocks[b_size/sizeof(__u32)];
+  ret = pread(fs, &blocks, b_size, b_size * block_no);
+  error(ret);
+  __u32 i;
+  for (i = 0; i < b_size/sizeof(__u32); i++) {
+    if (blocks[i] != 0) {
+      printf("INDIRECT,%d,%d,%ld,%d,%d\n", parent_no, 3, base + i * (b_size / sizeof(__u32)) * (b_size / sizeof(__u32)),
+	     block_no, blocks[i]);
+      second_ind(blocks[i], parent_no, base + i * (b_size / sizeof(__u32)) * (b_size / sizeof(__u32)));
+    }
+  }
+}
 
 int main(int argc, char** argv)
 { 
@@ -35,7 +79,7 @@ int main(int argc, char** argv)
     }
 
   char* fs_name = argv[1];
-  int fs = open(fs_name, O_RDONLY);
+  fs = open(fs_name, O_RDONLY);
   if(fs == -1)
     {
       fprintf(stderr, "Error when opening file system image.\n");
@@ -49,7 +93,7 @@ int main(int argc, char** argv)
   struct ext2_super_block sb;
   ret = pread(fs, &sb, BLOCK, BLOCK);
   error(ret);
-  __u32 b_size = 1024<<sb.s_log_block_size;
+  b_size = 1024<<sb.s_log_block_size;
   printf("SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n", sb.s_blocks_count, sb.s_inodes_count, b_size, sb.s_inode_size, sb.s_blocks_per_group, sb.s_inodes_per_group, sb.s_first_ino);
   
   // Group summary
@@ -180,6 +224,11 @@ int main(int argc, char** argv)
   for (i = 0; i < sb.s_inodes_count; i++) {
     // If the things is a directory
     if ((inodes[i].i_mode & 0xF000) == 0x4000 || (inodes[i].i_mode & 0xF000) == 0x8000) {
-      
+      first_ind(inodes[i].i_block[12], i + 1, 12);
+      second_ind(inodes[i].i_block[13], i + 1, 12 + b_size / sizeof(__u32));
+      third_ind(inodes[i].i_block[14], i + 1, 12 + b_size / sizeof(__u32) + b_size / sizeof(__u32)
+		* b_size / sizeof(__u32));
+    }
+  }
   return 0;
 }
