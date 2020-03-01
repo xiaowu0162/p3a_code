@@ -98,9 +98,9 @@ int main(int argc, char** argv)
   
   // Group summary
   struct ext2_group_desc group_desc;   // size is 32
-  ret = pread(fs, &group_desc, 32, b_size*2);
+  ret = pread(fs, &group_desc, 32, BLOCK+b_size);
   error(ret);
-  printf("GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", 0, sb.s_blocks_per_group, sb.s_inodes_per_group, group_desc.bg_free_blocks_count, group_desc.bg_free_inodes_count, group_desc.bg_block_bitmap, group_desc.bg_inode_bitmap, group_desc.bg_inode_table);
+  printf("GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n", 0, sb.s_blocks_count, sb.s_inodes_per_group, group_desc.bg_free_blocks_count, group_desc.bg_free_inodes_count, group_desc.bg_block_bitmap, group_desc.bg_inode_bitmap, group_desc.bg_inode_table);
 
   
   // Free block entries
@@ -170,11 +170,11 @@ int main(int argc, char** argv)
 	  
 	  struct tm* tmp;
 	  tmp = gmtime(&c_time_raw);  
-	  strftime(c_time_str, sizeof(c_time_str), "%D %I:%M:%S", tmp);  
+	  strftime(c_time_str, sizeof(c_time_str), "%D %H:%M:%S", tmp);  
 	  tmp = gmtime(&m_time_raw);  
-	  strftime(m_time_str, sizeof(m_time_str), "%D %I:%M:%S", tmp);  
+	  strftime(m_time_str, sizeof(m_time_str), "%D %H:%M:%S", tmp);  
 	  tmp = gmtime(&a_time_raw);  
-	  strftime(a_time_str, sizeof(a_time_str), "%D %I:%M:%S", tmp);  
+	  strftime(a_time_str, sizeof(a_time_str), "%D %H:%M:%S", tmp);  
 	  
 	  printf("INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d", i+1, file_type, mode_code, inodes[i].i_uid, inodes[i].i_gid, inodes[i].i_links_count, c_time_str, m_time_str, a_time_str, inodes[i].i_size, inodes[i].i_blocks);
 	  
